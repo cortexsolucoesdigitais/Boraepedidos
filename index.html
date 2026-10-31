@@ -303,6 +303,20 @@ a.btn{text-decoration:none}
 .stats>div:only-child svg{margin:0}
 .stats>div:only-child b,.stats>div:only-child small{display:inline;margin:0}
 .stats>div:only-child small{color:var(--texto-2)}
+/* curtir produto */
+.pfav{position:absolute;top:8px;right:8px;z-index:3;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);box-shadow:0 1px 6px rgba(0,0,0,.18);display:grid;place-items:center;color:#8a8a8a;cursor:pointer}
+.pfav svg{width:17px;height:17px}
+.pfav.on{color:var(--vermelho)}.pfav.on svg{fill:var(--vermelho)}
+.pcw .pfav{top:8px;right:8px}
+.pr-row.nophoto .pfav{background:#f4f4f1;box-shadow:none;top:7px;right:7px;width:28px;height:28px}
+.pr-row.nophoto .add2{align-self:flex-end}
+.pr-row.nophoto{min-height:96px}
+.pfav.inl{position:static;margin-left:auto;margin-right:8px;width:36px;height:36px;flex:0 0 auto;background:#f0f0ee;box-shadow:none}
+.pfav.inl svg{width:19px;height:19px}
+.fpw{position:relative}
+.fpw .pr-row{margin-bottom:0}
+.favseg button em{font-style:normal;font-size:12px;background:#ecece8;border-radius:99px;padding:1px 8px;margin-left:7px}
+.favseg button.on em{background:#fff}
 </style>
 </head>
 <body>
@@ -3110,7 +3124,7 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
   const S = {
     tab: 'inicio', q: '', cat: null, flt: new Set(), rest: null, mc: 0, excl: false, fromHome: false, state: 'load', err: '',
     city: { name: 'Pontes e Lacerda', state: 'MT' }, cats: [], rests: [], notfound: false,
-    fav: new Set(ls.get('borae_fav', [])), recent: ls.get('borae_recent', []),
+    fav: new Set(ls.get('borae_fav', [])), favP: new Set(ls.get('borae_favp', [])), favTab: 'rest', recent: ls.get('borae_recent', []),
     cart: { rs: null, items: [] },
     form: { tipo: 'entrega', nome: SAVED.nome || '', tel: SAVED.tel || '', end: SAVED.end || '', comp: SAVED.comp || '', pag: 'Pix', troco: '' }
   };
@@ -3135,12 +3149,13 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
      <span class="fav ${S.fav.has(r.s) ? 'on' : ''}" data-fav="${esc(r.s)}" role="button" aria-label="Favoritar">${ic('heart')}</span></button>`;
   }
   // texto de preço: promoção, "a partir de" (tamanhos), "Consultar" (preço 0)
+  const pHeart = (p, cls) => `<span class="pfav ${cls || ''} ${S.favP.has(p.id) ? 'on' : ''}" data-favp="${esc(p.id)}" role="button" aria-label="Curtir produto">${ic('heart')}</span>`;
   const prHtml = p => p.pp ? `<s>${money(p.p)}</s><span class="n">${money(p.pp)}</span>`
     : (!p.p ? '<span class="cons">Consultar</span>' : `<span>${p.ag >= 0 ? '<small class="ap">a partir de</small> ' : ''}${money(p.p)}</span>`);
   const feeLbl = r => r.flagged ? `Taxa só c/ ${r.feeNames.join(' e ') || 'itens marcados'}` : '';
   function pcard(p) {
     const pr = prHtml(p);
-    return `<div class="pcw"><button class="pc" data-prod="${esc(p.id)}" data-go="${esc(p.r.s)}"><div class="ph" style="background-image:${cssUrl(p.img)}"></div><div class="b"><b>${esc(p.n)}</b><small>${esc(p.r.n)}</small><div class="pr">${pr}</div></div></button>${p.pp ? '<span class="badge">Oferta</span>' : ''}</div>`;
+    return `<div class="pcw"><button class="pc" data-prod="${esc(p.id)}" data-go="${esc(p.r.s)}"><div class="ph" style="background-image:${cssUrl(p.img)}"></div><div class="b"><b>${esc(p.n)}</b><small>${esc(p.r.n)}</small><div class="pr">${pr}</div></div></button>${p.pp ? '<span class="badge">Oferta</span>' : ''}${pHeart(p)}</div>`;
   }
   const row = (title, sub, html) => `<section class="sec"><h3>${title}${sub ? `<small>${sub}</small>` : ''}</h3>${html}</section>`;
   const hs = (cls, items) => `<div class="hs ${cls || ''}">${items}</div>`;
@@ -3188,8 +3203,13 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
     return h + '</div>';
   }
   function vFav() {
-    const l = S.rests.filter(r => S.fav.has(r.s));
-    return `<div class="wrap"><div class="rh"><h3>Favoritos</h3></div>${l.length ? `<div class="col">${l.map(rcard).join('')}</div>` : `<div class="empty"><b>Nenhum favorito ainda</b>Toque no coração de um restaurante para guardar aqui.</div>`}</div>`;
+    const lr = S.rests.filter(r => S.fav.has(r.s)), lp = allProds().filter(p => S.favP.has(p.id)), tab = S.favTab;
+    let h = `<div class="wrap"><div class="rh"><h3>Favoritos</h3></div>
+      <div class="seg favseg"><button data-ftab="rest" class="${tab === 'rest' ? 'on' : ''}">Estabelecimentos<em>${lr.length}</em></button><button data-ftab="prod" class="${tab === 'prod' ? 'on' : ''}">Produtos<em>${lp.length}</em></button></div><div style="height:14px"></div>`;
+    if (tab === 'rest') h += lr.length ? `<div class="col">${lr.map(rcard).join('')}</div>` : `<div class="empty"><b>Nenhum estabelecimento curtido</b>Toque no coração de um estabelecimento para guardar aqui.</div>`;
+    else h += lp.length ? `<div class="col">${lp.map(p => `<div class="fpw"><button class="pr-row ${isOpen(p.r) ? '' : 'off'}" data-prod="${esc(p.id)}" data-go="${esc(p.r.s)}"><div class="t"><b>${esc(p.n)}</b><p>${esc(p.r.n)}</p><div class="pr">${prHtml(p)}</div></div>${p.photo ? `<div class="ph" style="background-image:${cssUrl(p.img)}"></div>` : `<span class="tile">${p.e}</span>`}</button>${pHeart(p)}</div>`).join('')}</div>`
+      : `<div class="empty"><b>Nenhum produto curtido</b>Toque no coração de um produto, no cardápio, para guardar aqui.</div>`;
+    return h + '</div>';
   }
   /* Meus pedidos: ficam só neste aparelho (nada de login, nada de dados na internet além do pedido em si) */
   const pedidos = () => ls.get('borae_pedidos', []);
@@ -3239,7 +3259,7 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
     h += '<div class="wrap">' + (total > 12 ? `<div class="msearch">${ic('search')}<input id="mq" type="search" autocomplete="off" placeholder="Buscar no cardápio de ${esc(r.n)}…"></div><div class="empty" id="mqnone" hidden><b>Nada encontrado</b>Tente outra palavra.</div>` : '');
     h += r.menu.map((m, i) => `<section class="mc" id="mc${i}"><h3><i class="mi">${m.e || '🍽️'}</i><span>${esc(m.n)}</span><small>${m.p.length} ${m.p.length === 1 ? 'item' : 'itens'}</small></h3>${m.note ? `<p class="mnote">${ic('info')}<span>${esc(m.note)}</span></p>` : ''}${m.p.map(p => {
       const pr = prHtml(p);
-      return `<button class="pr-row ${open ? '' : 'off'} ${p.photo ? '' : 'nophoto'}" data-open="${esc(p.id)}" data-txt="${esc(p.n + ' ' + p.d)}">${p.photo ? '' : `<span class="tile">${p.e || m.e || '🍽️'}</span>`}<div class="t"><b>${esc(p.n)}</b>${p.d ? `<p>${esc(p.d)}</p>` : ''}<div class="pr">${pr}</div>${p.bulk ? `<div class="bulk">${p.bulk[0]} ou mais: ${money(p.bulk[1])} cada</div>` : ''}</div>${p.photo ? `<div class="ph" style="background-image:${cssUrl(p.img)}"><span class="add">${ic('plus')}</span></div>` : `<span class="add2">${ic('plus')}</span>`}</button>`; }).join('')}</section>`).join('');
+      return `<button class="pr-row ${open ? '' : 'off'} ${p.photo ? '' : 'nophoto'}" data-open="${esc(p.id)}" data-txt="${esc(p.n + ' ' + p.d)}">${pHeart(p)}${p.photo ? '' : `<span class="tile">${p.e || m.e || '🍽️'}</span>`}<div class="t"><b>${esc(p.n)}</b>${p.d ? `<p>${esc(p.d)}</p>` : ''}<div class="pr">${pr}</div>${p.bulk ? `<div class="bulk">${p.bulk[0]} ou mais: ${money(p.bulk[1])} cada</div>` : ''}</div>${p.photo ? `<div class="ph" style="background-image:${cssUrl(p.img)}"><span class="add">${ic('plus')}</span></div>` : `<span class="add2">${ic('plus')}</span>`}</button>`; }).join('')}</section>`).join('');
     return h + (S.excl ? foot() : '') + '</div>';
   }
   const foot = () => `<p class="frase"><b>Boraê</b> · A cidade pede por aqui.</p>`;
@@ -3296,7 +3316,7 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
   const pOk = () => P.p.opts.every((g, gi) => P.sel[gi].length >= g.min);
   function drawProduct() {
     const { p } = P;
-    sheet(`<div class="hd"><h3>${esc(p.n)}</h3><button class="x" data-close aria-label="Fechar">×</button></div><div class="bd">
+    sheet(`<div class="hd"><h3>${esc(p.n)}</h3>${pHeart(p, 'inl')}<button class="x" data-close aria-label="Fechar">×</button></div><div class="bd">
      ${p.photo ? `<div class="pimg" style="background-image:${cssUrl(p.img)}"></div>` : ''}${p.d ? `<div style="color:#6b6b6b;font-weight:700;font-size:14px">${esc(p.d)}</div>` : ''}
      <div class="pr" style="margin-top:8px;font-size:18px">${prHtml(p)}</div>${p.bulk ? `<div class="bulk" style="margin-top:2px">${p.bulk[0]} ou mais: ${money(p.bulk[1])} cada</div>` : ''}
      ${p.opts.map((g, gi) => { const full = P.sel[gi].length >= g.max;
@@ -3437,6 +3457,15 @@ window.BORAE_CONFIG={SUPABASE_URL:"COLE_AQUI_A_PROJECT_URL",SUPABASE_ANON_KEY:"C
   const keepScroll = (x, sel) => { renderResults(); const n = $(sel); if (n) n.scrollLeft = x; };
   document.addEventListener('click', async e => {
     const t = e.target, c = s => t.closest(s); let el;
+    if ((el = c('[data-favp]'))) {
+      e.stopPropagation(); e.preventDefault(); const id = el.dataset.favp, on = !S.favP.has(id);
+      on ? S.favP.add(id) : S.favP.delete(id); ls.set('borae_favp', [...S.favP]);
+      document.querySelectorAll('[data-favp]').forEach(x => { if (x.dataset.favp === id) x.classList.toggle('on', on); });
+      toast(on ? 'Produto curtido' : 'Curtida removida');
+      if (S.tab === 'favoritos' && !S.rest && !$('#layer .sheet')) { const y = window.scrollY; render(); window.scrollTo(0, y); }
+      return;
+    }
+    if ((el = c('[data-ftab]'))) { S.favTab = el.dataset.ftab; render(); return; }
     if ((el = c('[data-fav]'))) { e.stopPropagation(); e.preventDefault(); const id = el.dataset.fav; S.fav.has(id) ? S.fav.delete(id) : S.fav.add(id); ls.set('borae_fav', [...S.fav]); const y = window.scrollY; render(); window.scrollTo(0, y); return; }
     if ((el = c('[data-prod]')) && c('[data-go]')) { const pid = el.dataset.prod; await go(c('[data-go]').dataset.go); openProduct(pid); return; }
     if ((el = c('[data-go]'))) { go(el.dataset.go); return; }
